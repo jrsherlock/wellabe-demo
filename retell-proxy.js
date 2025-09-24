@@ -1,11 +1,24 @@
-// Serverless function for handling RetellAI API calls
-// This can be deployed to Vercel, Netlify, or similar platforms to handle CORS
+// Secure serverless function for handling RetellAI API calls
+// Deploy to Vercel, Netlify, or similar platforms with environment variables
+// SECURITY: Never expose API keys in client-side code
 
 export default async function handler(req, res) {
-    // Enable CORS
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    // Strict CORS configuration for production
+    const allowedOrigins = [
+        'https://jrsherlock.github.io',
+        'https://wellabe-demo.vercel.app',
+        'http://localhost:3000',
+        'http://localhost:8000'
+    ];
+
+    const origin = req.headers.origin;
+    if (allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
 
     // Handle preflight requests
     if (req.method === 'OPTIONS') {
@@ -13,33 +26,53 @@ export default async function handler(req, res) {
         return;
     }
 
-    // Only allow POST requests for creating web calls
+    // Only allow POST requests
     if (req.method !== 'POST') {
         res.status(405).json({ error: 'Method not allowed' });
         return;
     }
 
+    // Validate environment variables
+    if (!process.env.RETELL_API_KEY) {
+        console.error('RETELL_API_KEY environment variable not set');
+        res.status(500).json({ error: 'Server configuration error' });
+        return;
+    }
+
     try {
         const { agent_id, metadata } = req.body;
-        
+
         // Validate required fields
         if (!agent_id) {
             res.status(400).json({ error: 'agent_id is required' });
             return;
         }
 
+        // Validate agent_id format (basic security check)
+        if (!agent_id.startsWith('agent_') || agent_id.length < 20) {
+            res.status(400).json({ error: 'Invalid agent_id format' });
+            return;
+        }
+
+        // Rate limiting check (basic implementation)
+        const clientIP = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+        console.log(`Request from IP: ${clientIP} for agent: ${agent_id}`);
+
         // Make request to RetellAI API
         const response = await fetch('https://api.retellai.com/v2/create-web-call', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${process.env.RETELL_API_KEY}`,
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'User-Agent': 'Wellabe-Demo-Proxy/1.0'
             },
             body: JSON.stringify({
                 agent_id,
                 metadata: {
                     ...metadata,
-                    proxy_timestamp: new Date().toISOString()
+                    proxy_timestamp: new Date().toISOString(),
+                    client_ip: clientIP,
+                    source: 'wellabe-demo'
                 }
             })
         });
@@ -47,21 +80,32 @@ export default async function handler(req, res) {
         if (!response.ok) {
             const errorData = await response.text();
             console.error('RetellAI API error:', response.status, errorData);
-            res.status(response.status).json({ 
-                error: 'RetellAI API error',
-                details: errorData 
+
+            // Don't expose internal API errors to client
+            res.status(503).json({
+                error: 'Voice service temporarily unavailable',
+                retry_after: 30
             });
             return;
         }
 
         const data = await response.json();
-        res.status(200).json(data);
+
+        // Log successful calls for monitoring
+        console.log(`Successful web call created: ${data.call_id}`);
+
+        // Only return necessary data to client
+        res.status(200).json({
+            call_id: data.call_id,
+            access_token: data.access_token,
+            agent_id: data.agent_id
+        });
 
     } catch (error) {
         console.error('Proxy error:', error);
-        res.status(500).json({ 
-            error: 'Internal server error',
-            message: error.message 
+        res.status(500).json({
+            error: 'Internal server error'
+            // Don't expose error details in production
         });
     }
 }

@@ -170,7 +170,8 @@
                 this.retellWebClient = null;
                 this.isConnected = false;
                 this.isInCall = false;
-                this.apiKey = 'key_f9d04ea5b028416d6f8f258d4f6d';
+                // SECURITY: API key removed - handled by secure proxy
+                this.proxyEndpoint = 'https://wellabe-demo-proxy.vercel.app/api/retell-proxy';
                 this.agentId = 'agent_57d5ff27b5134a353952f6da7d';
 
                 // DOM elements
@@ -290,66 +291,49 @@
 
             async createWebCall() {
                 try {
-                    // Try multiple endpoints for CORS handling
-                    const endpoints = [
-                        // Primary: Custom proxy (replace with your deployed proxy URL)
-                        'https://your-proxy-domain.vercel.app/api/retell-proxy',
-                        // Fallback 1: CORS proxy
-                        'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://api.retellai.com/v2/create-web-call'),
-                        // Fallback 2: Another CORS proxy
-                        'https://cors-anywhere.herokuapp.com/https://api.retellai.com/v2/create-web-call'
-                    ];
+                    console.log('Creating secure web call via proxy...');
 
-                    for (let i = 0; i < endpoints.length; i++) {
-                        try {
-                            const endpoint = endpoints[i];
-                            console.log(`Trying endpoint ${i + 1}:`, endpoint);
-
-                            const requestOptions = {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify({
-                                    agent_id: this.agentId,
-                                    metadata: {
-                                        demo: 'wellabe-voice-agent',
-                                        source: 'demo-page',
-                                        timestamp: new Date().toISOString(),
-                                        endpoint_used: i + 1
-                                    }
-                                })
-                            };
-
-                            // Add authorization header for direct API calls (CORS proxies)
-                            if (i > 0) {
-                                requestOptions.headers['Authorization'] = `Bearer ${this.apiKey}`;
+                    const response = await fetch(this.proxyEndpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            agent_id: this.agentId,
+                            metadata: {
+                                demo: 'wellabe-voice-agent',
+                                source: 'github-pages',
+                                timestamp: new Date().toISOString(),
+                                user_agent: navigator.userAgent,
+                                page_url: window.location.href
                             }
+                        })
+                    });
 
-                            const response = await fetch(endpoint, requestOptions);
-
-                            if (!response.ok) {
-                                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                            }
-
-                            const data = await response.json();
-                            console.log('Successfully created web call:', data);
-                            return data;
-
-                        } catch (endpointError) {
-                            console.warn(`Endpoint ${i + 1} failed:`, endpointError);
-                            if (i === endpoints.length - 1) {
-                                throw endpointError;
-                            }
-                            // Continue to next endpoint
-                        }
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
                     }
 
+                    const data = await response.json();
+                    console.log('Successfully created secure web call:', data.call_id);
+                    return data;
+
                 } catch (error) {
-                    console.error('All endpoints failed:', error);
+                    console.error('Secure proxy failed:', error);
+
+                    // Check if it's a network/CORS issue
+                    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                        this.handleError('Network connection failed', new Error('Please check your internet connection and try again.'));
+                    } else if (error.message.includes('503')) {
+                        this.handleError('Voice service temporarily unavailable', new Error('Please try again in a few moments.'));
+                    } else {
+                        this.handleError('Unable to connect to voice service', error);
+                    }
+
                     // Show fallback options
                     this.showChatFallback();
-                    throw new Error('Unable to connect to voice service. All connection methods failed.');
+                    throw error;
                 }
             }
 
