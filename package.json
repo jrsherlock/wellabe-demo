@@ -1,0 +1,32 @@
+{
+  "name": "wellabe-voice-demo",
+  "version": "1.0.0",
+  "description": "Wellabe Voice Agent Demo with RetellAI integration",
+  "main": "wellabe-demo.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "start:node": "npx http-server -p 8000 -c-1",
+    "deploy:vercel": "vercel --prod",
+    "test": "open test-integration.html"
+  },
+  "keywords": [
+    "retellai",
+    "voice-agent",
+    "wellabe",
+    "customer-support",
+    "ai-voice"
+  ],
+  "author": "Wellabe",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_USERNAME/wellabe-voice-demo.git"
+  },
+  "homepage": "https://YOUR_USERNAME.github.io/wellabe-voice-demo/",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

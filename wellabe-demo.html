@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wellabe Rewards - Voice Agent Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- RetellAI Web SDK -->
+    <script src="https://web.retellai.com/retell-web-client-js/retell-web-client.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'wellabe-blue': '#003366',
+                        'wellabe-gold': '#ffcc00',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .bg-wellabe-gold-light {
+            background-color: #ffd700;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .pulse-animation {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes recording-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .recording-pulse {
+            animation: recording-pulse 1s ease-in-out infinite;
+        }
+        .status-indicator {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+        .status-connected {
+            background-color: #10b981;
+        }
+        .status-connecting {
+            background-color: #f59e0b;
+        }
+        .status-error {
+            background-color: #ef4444;
+        }
+    </style>
+</head>
+<body class="bg-wellabe-gold min-h-screen flex flex-col md:flex-row items-center justify-center p-4 space-y-8 md:space-y-0 md:space-x-8">
+
+    <!-- Login/Voice Agent Card -->
+    <div class="bg-white p-8 md:p-12 rounded-2xl shadow-2xl w-full max-w-sm flex flex-col items-start text-left">
+        <!-- Wellabe Rewards Logo -->
+        <div class="mb-4">
+            <h1 class="text-3xl font-semibold text-wellabe-blue">wellabe</h1>
+            <p class="text-sm font-light text-gray-700">REWARDS™</p>
+        </div>
+
+        <!-- Login Section -->
+        <p class="text-gray-800 font-semibold mb-6 leading-tight">Already have a Customer Portal or Be Well Mobile account? Use the same credentials below.</p>
+        <button class="w-full flex justify-center items-center py-3 px-6 rounded-lg font-semibold transition-all duration-300 ease-in-out transform shadow-md hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-wellabe-blue text-white mb-4">
+            Sign in >
+        </button>
+        <p class="text-xs text-gray-500 mb-6">By signing up and logging in, you agree to our <a href="#" class="text-wellabe-blue font-medium underline">Privacy Policy</a> and <a href="#" class="text-wellabe-blue font-medium underline">Terms and Conditions</a></p>
+        
+        <button class="w-full flex justify-center items-center py-3 px-6 rounded-lg font-semibold transition-all duration-300 ease-in-out transform shadow-md hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-wellabe-blue text-white mb-6">
+            Create an account >
+        </button>
+
+        <!-- Information Text -->
+        <p class="text-gray-500 text-xs mb-4">By providing your email address, you are agreeing to receive email communication from Wellabe. All of your contact information will be kept confidential, and you can manage your preferences at any time.</p>
+        
+        <p class="text-gray-500 text-xs mb-8">Having issues? Please contact us at:<br><a href="tel:+18665828900" class="text-wellabe-blue font-semibold underline">+1 866-582-8900</a></p>
+        
+        <!-- Intelligent Support Agent Section -->
+        <div class="w-full border-t border-gray-200 pt-6 mt-auto">
+            <h2 class="text-lg font-bold text-gray-800 mb-2">Need help?</h2>
+            <p class="text-gray-500 text-sm mb-4">Connect with our intelligent support agent for personalized assistance.</p>
+
+            <!-- Connection Status Indicator -->
+            <div id="connectionStatus" class="hidden mb-3 p-2 rounded-lg text-sm">
+                <span id="statusText"></span>
+            </div>
+
+            <!-- Voice Agent Button with Status Indicator -->
+            <div class="relative inline-block w-full">
+                <button id="voiceButton" class="w-full flex justify-center items-center py-3 px-6 rounded-full font-semibold transition-all duration-300 ease-in-out transform shadow-md hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-wellabe-blue text-white">
+                    <svg id="micIcon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    <span id="buttonText">Talk to Samantha</span>
+                </button>
+                <div id="statusIndicator" class="status-indicator status-connected hidden"></div>
+            </div>
+
+            <!-- Chat Fallback Section -->
+            <div id="chatFallback" class="hidden mt-4">
+                <div class="border-t border-gray-200 pt-4">
+                    <p class="text-gray-600 text-sm mb-3">Voice not available? Try our text chat:</p>
+                    <button id="chatButton" class="w-full flex justify-center items-center py-2 px-4 rounded-lg font-medium transition-all duration-300 ease-in-out transform shadow-sm hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-gray-100 text-gray-700 border border-gray-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                        Start Text Chat
+                    </button>
+                </div>
+            </div>
+
+            <!-- Error Message -->
+            <div id="errorMessage" class="hidden mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p class="text-red-700 text-sm">
+                    <span class="font-medium">Connection Error:</span>
+                    <span id="errorText">Unable to connect to voice agent. Please try again or use text chat.</span>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SVG Illustration Section -->
+    <div class="hidden md:block w-full max-w-lg lg:max-w-2xl mt-8 md:mt-0">
+        <svg width="100%" height="100%" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+            <!-- Background Circle -->
+            <circle cx="250" cy="250" r="230" stroke="#fff" stroke-width="2" fill="none"/>
+            <!-- Woman and Tub -->
+            <path d="M 120 400 H 260 V 300 H 120 Z" stroke="#000" fill="none" stroke-width="2" stroke-linejoin="round" />
+            <path d="M 260 300 Q 280 280, 300 300 V 400 H 260 Z" stroke="#000" fill="none" stroke-width="2" stroke-linejoin="round" />
+            <path d="M 120 400 L 120 300" stroke="#000" fill="none" stroke-width="2" stroke-linecap="round" />
+            <rect x="130" y="310" width="120" height="80" stroke="#000" fill="none" stroke-width="2" rx="5" />
+            <line x1="140" y1="315" x2="240" y2="315" stroke="#000" stroke-width="2" />
+            <circle cx="150" cy="315" r="3" fill="#000" />
+            <circle cx="230" cy="315" r="3" fill="#000" />
+            <!-- Person and Chair -->
+            <path d="M 300 400 H 400 V 350 H 300 Z" stroke="#000" fill="none" stroke-width="2" stroke-linejoin="round" />
+            <line x1="300" y1="350" x2="300" y2="300" stroke="#000" stroke-width="2" />
+            <line x1="400" y1="350" x2="400" y2="300" stroke="#000" stroke-width="2" />
+            <line x1="300" y1="300" x2="400" y2="300" stroke="#000" stroke-width="2" />
+            <path d="M 300 300 C 300 250, 400 250, 400 300" stroke="#000" fill="none" stroke-width="2" />
+            <circle cx="350" cy="250" r="50" stroke="#000" fill="none" stroke-width="2" />
+            <path d="M 300 300 C 300 250, 400 250, 400 300" stroke="#000" fill="none" stroke-width="2" />
+            <line x1="350" y1="300" x2="350" y2="250" stroke="#000" stroke-width="2" />
+            <path d="M 320 250 A 15 15 0 1 1 380 250" stroke="#000" fill="none" stroke-width="2" />
+            <path d="M 320 250 C 310 200, 390 200, 380 250" stroke="#000" fill="none" stroke-width="2" />
+        </svg>
+    </div>
+
+    <!-- JavaScript for RetellAI Voice Agent Integration -->
+    <script>
+        class WellabeVoiceAgent {
+            constructor() {
+                this.retellWebClient = null;
+                this.isConnected = false;
+                this.isInCall = false;
+                this.apiKey = 'key_f9d04ea5b028416d6f8f258d4f6d';
+                this.agentId = 'agent_57d5ff27b5134a353952f6da7d';
+
+                // DOM elements
+                this.voiceButton = document.getElementById('voiceButton');
+                this.buttonText = document.getElementById('buttonText');
+                this.micIcon = document.getElementById('micIcon');
+                this.statusIndicator = document.getElementById('statusIndicator');
+                this.connectionStatus = document.getElementById('connectionStatus');
+                this.statusText = document.getElementById('statusText');
+                this.errorMessage = document.getElementById('errorMessage');
+                this.errorText = document.getElementById('errorText');
+                this.chatFallback = document.getElementById('chatFallback');
+                this.chatButton = document.getElementById('chatButton');
+
+                this.init();
+            }
+
+            async init() {
+                try {
+                    // Initialize RetellAI Web Client
+                    this.retellWebClient = new RetellWebClient();
+
+                    // Set up event listeners
+                    this.setupEventListeners();
+
+                    // Show ready state
+                    this.updateStatus('ready', 'Voice agent ready');
+
+                } catch (error) {
+                    console.error('Failed to initialize RetellAI:', error);
+                    this.handleError('Initialization failed', error);
+                }
+            }
+
+            setupEventListeners() {
+                // Voice button click handler
+                this.voiceButton.addEventListener('click', () => this.handleVoiceButtonClick());
+
+                // Chat fallback button
+                this.chatButton.addEventListener('click', () => this.handleChatButtonClick());
+
+                // RetellAI event listeners
+                if (this.retellWebClient) {
+                    this.retellWebClient.on('conversationStarted', () => {
+                        this.isInCall = true;
+                        this.updateStatus('connected', 'Connected to Samantha');
+                        this.updateButton('recording', 'Talking with Samantha - Click to end');
+                    });
+
+                    this.retellWebClient.on('conversationEnded', () => {
+                        this.isInCall = false;
+                        this.updateStatus('ready', 'Call ended');
+                        this.updateButton('ready', 'Talk to Samantha');
+                        setTimeout(() => this.hideStatus(), 3000);
+                    });
+
+                    this.retellWebClient.on('error', (error) => {
+                        console.error('RetellAI error:', error);
+                        this.handleError('Connection error', error);
+                    });
+
+                    this.retellWebClient.on('update', (update) => {
+                        console.log('RetellAI update:', update);
+                    });
+                }
+            }
+
+            async handleVoiceButtonClick() {
+                if (this.isInCall) {
+                    // End the call
+                    await this.endCall();
+                } else {
+                    // Start a new call
+                    await this.startCall();
+                }
+            }
+
+            async startCall() {
+                try {
+                    this.updateStatus('connecting', 'Connecting to Samantha...');
+                    this.updateButton('connecting', 'Connecting...');
+
+                    // Create web call using RetellAI API
+                    const response = await this.createWebCall();
+
+                    if (response && response.access_token) {
+                        // Start the call with the access token
+                        await this.retellWebClient.startConversation({
+                            accessToken: response.access_token,
+                            sampleRate: 24000,
+                            enableUpdate: true
+                        });
+                    } else {
+                        throw new Error('Failed to get access token');
+                    }
+
+                } catch (error) {
+                    console.error('Failed to start call:', error);
+                    this.handleError('Failed to connect', error);
+                }
+            }
+
+            async endCall() {
+                try {
+                    this.updateStatus('disconnecting', 'Ending call...');
+                    this.updateButton('disconnecting', 'Ending call...');
+
+                    if (this.retellWebClient) {
+                        await this.retellWebClient.stopConversation();
+                    }
+
+                } catch (error) {
+                    console.error('Failed to end call:', error);
+                    this.handleError('Failed to end call', error);
+                }
+            }
+
+            async createWebCall() {
+                try {
+                    // Try multiple endpoints for CORS handling
+                    const endpoints = [
+                        // Primary: Custom proxy (replace with your deployed proxy URL)
+                        'https://your-proxy-domain.vercel.app/api/retell-proxy',
+                        // Fallback 1: CORS proxy
+                        'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://api.retellai.com/v2/create-web-call'),
+                        // Fallback 2: Another CORS proxy
+                        'https://cors-anywhere.herokuapp.com/https://api.retellai.com/v2/create-web-call'
+                    ];
+
+                    for (let i = 0; i < endpoints.length; i++) {
+                        try {
+                            const endpoint = endpoints[i];
+                            console.log(`Trying endpoint ${i + 1}:`, endpoint);
+
+                            const requestOptions = {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    agent_id: this.agentId,
+                                    metadata: {
+                                        demo: 'wellabe-voice-agent',
+                                        source: 'demo-page',
+                                        timestamp: new Date().toISOString(),
+                                        endpoint_used: i + 1
+                                    }
+                                })
+                            };
+
+                            // Add authorization header for direct API calls (CORS proxies)
+                            if (i > 0) {
+                                requestOptions.headers['Authorization'] = `Bearer ${this.apiKey}`;
+                            }
+
+                            const response = await fetch(endpoint, requestOptions);
+
+                            if (!response.ok) {
+                                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                            }
+
+                            const data = await response.json();
+                            console.log('Successfully created web call:', data);
+                            return data;
+
+                        } catch (endpointError) {
+                            console.warn(`Endpoint ${i + 1} failed:`, endpointError);
+                            if (i === endpoints.length - 1) {
+                                throw endpointError;
+                            }
+                            // Continue to next endpoint
+                        }
+                    }
+
+                } catch (error) {
+                    console.error('All endpoints failed:', error);
+                    // Show fallback options
+                    this.showChatFallback();
+                    throw new Error('Unable to connect to voice service. All connection methods failed.');
+                }
+            }
+
+            updateStatus(state, message) {
+                this.statusText.textContent = message;
+                this.connectionStatus.className = 'mb-3 p-2 rounded-lg text-sm';
+                this.statusIndicator.className = 'status-indicator';
+
+                switch (state) {
+                    case 'ready':
+                        this.connectionStatus.classList.add('bg-green-50', 'text-green-700', 'border', 'border-green-200');
+                        this.statusIndicator.classList.add('status-connected');
+                        break;
+                    case 'connecting':
+                        this.connectionStatus.classList.add('bg-yellow-50', 'text-yellow-700', 'border', 'border-yellow-200');
+                        this.statusIndicator.classList.add('status-connecting');
+                        break;
+                    case 'connected':
+                        this.connectionStatus.classList.add('bg-green-50', 'text-green-700', 'border', 'border-green-200');
+                        this.statusIndicator.classList.add('status-connected');
+                        break;
+                    case 'disconnecting':
+                        this.connectionStatus.classList.add('bg-gray-50', 'text-gray-700', 'border', 'border-gray-200');
+                        this.statusIndicator.classList.add('status-connecting');
+                        break;
+                    case 'error':
+                        this.connectionStatus.classList.add('bg-red-50', 'text-red-700', 'border', 'border-red-200');
+                        this.statusIndicator.classList.add('status-error');
+                        break;
+                }
+
+                this.connectionStatus.classList.remove('hidden');
+                this.statusIndicator.classList.remove('hidden');
+            }
+
+            updateButton(state, text) {
+                this.buttonText.textContent = text;
+                this.voiceButton.className = 'w-full flex justify-center items-center py-3 px-6 rounded-full font-semibold transition-all duration-300 ease-in-out transform shadow-md hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2';
+
+                switch (state) {
+                    case 'ready':
+                        this.voiceButton.classList.add('bg-wellabe-blue', 'text-white');
+                        break;
+                    case 'connecting':
+                        this.voiceButton.classList.add('bg-yellow-500', 'text-white');
+                        break;
+                    case 'recording':
+                        this.voiceButton.classList.add('bg-red-500', 'text-white', 'recording-pulse');
+                        break;
+                    case 'disconnecting':
+                        this.voiceButton.classList.add('bg-gray-500', 'text-white');
+                        break;
+                }
+            }
+
+            handleError(message, error) {
+                console.error(message, error);
+                this.errorText.textContent = `${message}. ${error.message || 'Please try again.'}`;
+                this.errorMessage.classList.remove('hidden');
+                this.updateStatus('error', 'Connection failed');
+                this.updateButton('ready', 'Talk to Samantha');
+                this.showChatFallback();
+
+                // Hide error after 10 seconds
+                setTimeout(() => {
+                    this.errorMessage.classList.add('hidden');
+                }, 10000);
+            }
+
+            showChatFallback() {
+                this.chatFallback.classList.remove('hidden');
+            }
+
+            hideStatus() {
+                this.connectionStatus.classList.add('hidden');
+                this.statusIndicator.classList.add('hidden');
+            }
+
+            handleChatButtonClick() {
+                // Implement text chat fallback
+                alert('Text chat feature would be implemented here. This could integrate with your existing chat system or open a chat widget.');
+            }
+        }
+
+        // Initialize the voice agent when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check if RetellWebClient is available
+            if (typeof RetellWebClient !== 'undefined') {
+                new WellabeVoiceAgent();
+            } else {
+                console.error('RetellWebClient not loaded');
+                // Show fallback options
+                document.getElementById('chatFallback').classList.remove('hidden');
+                document.getElementById('errorMessage').classList.remove('hidden');
+                document.getElementById('errorText').textContent = 'Voice features unavailable. Please use text chat.';
+            }
+        });
+    </script>
+</body>
+</html>
