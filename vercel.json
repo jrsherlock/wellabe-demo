@@ -1,0 +1,10 @@
+{
+  "functions": {
+    "retell-proxy.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "env": {
+    "RETELL_API_KEY": "key_f9d04ea5b028416d6f8f258d4f6d"
+  }
+}
