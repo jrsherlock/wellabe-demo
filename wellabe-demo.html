@@ -8,8 +8,16 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- RetellAI Web SDK - Using CDN -->
-    <script src="https://unpkg.com/retell-client-js-sdk@latest/dist/index.umd.js"></script>
+    <!-- RetellAI Web SDK - ES6 Module -->
+    <script type="importmap">
+        {
+            "imports": {
+                "retell-client-js-sdk": "https://unpkg.com/retell-client-js-sdk@latest/dist/index.m.js",
+                "eventemitter3": "https://unpkg.com/eventemitter3@5.0.1/index.mjs",
+                "livekit-client": "https://unpkg.com/livekit-client@2.5.7/dist/livekit-client.esm.mjs"
+            }
+        }
+    </script>
     <script>
         tailwind.config = {
             theme: {
@@ -164,7 +172,9 @@
     </div>
 
     <!-- JavaScript for RetellAI Voice Agent Integration -->
-    <script>
+    <script type="module">
+        import { RetellWebClient } from 'retell-client-js-sdk';
+
         class WellabeVoiceAgent {
             constructor() {
                 this.retellWebClient = null;
@@ -192,7 +202,7 @@
             async init() {
                 try {
                     // Initialize RetellAI Web Client
-                    this.retellWebClient = new window.RetellWebClient();
+                    this.retellWebClient = new RetellWebClient();
 
                     // Set up event listeners
                     this.setupEventListeners();
@@ -421,7 +431,7 @@
         // Initialize the voice agent when the page loads
         document.addEventListener('DOMContentLoaded', () => {
             // Check if RetellWebClient is available
-            if (typeof window.RetellWebClient !== 'undefined') {
+            if (typeof RetellWebClient !== 'undefined') {
                 new WellabeVoiceAgent();
             } else {
                 console.error('RetellWebClient not loaded');
