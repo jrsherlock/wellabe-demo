@@ -1,9 +1,4 @@
 {
-  "functions": {
-    "api/retell-proxy.js": {
-      "runtime": "nodejs18.x"
-    }
-  },
   "headers": [
     {
       "source": "/api/(.*)",
