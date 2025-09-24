@@ -170,7 +170,8 @@
                 this.retellWebClient = null;
                 this.isConnected = false;
                 this.isInCall = false;
-                this.apiKey = 'key_f9d04ea5b028416d6f8f258d4f6d';
+                // SECURITY: API key removed - handled by secure proxy
+                this.proxyEndpoint = 'https://wellabe-demo.vercel.app/api/retell-proxy';
                 this.agentId = 'agent_57d5ff27b5134a353952f6da7d';
 
                 // DOM elements
@@ -290,14 +291,9 @@
 
             async createWebCall() {
                 try {
-                    // Try multiple endpoints for CORS handling
+                    // Use secure proxy endpoint
                     const endpoints = [
-                        // Primary: Custom proxy (replace with your deployed proxy URL)
-                        'https://your-proxy-domain.vercel.app/api/retell-proxy',
-                        // Fallback 1: CORS proxy
-                        'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://api.retellai.com/v2/create-web-call'),
-                        // Fallback 2: Another CORS proxy
-                        'https://cors-anywhere.herokuapp.com/https://api.retellai.com/v2/create-web-call'
+                        this.proxyEndpoint
                     ];
 
                     for (let i = 0; i < endpoints.length; i++) {
@@ -321,10 +317,7 @@
                                 })
                             };
 
-                            // Add authorization header for direct API calls (CORS proxies)
-                            if (i > 0) {
-                                requestOptions.headers['Authorization'] = `Bearer ${this.apiKey}`;
-                            }
+                            // No authorization header needed - handled by secure proxy
 
                             const response = await fetch(endpoint, requestOptions);
 

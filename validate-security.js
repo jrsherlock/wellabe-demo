@@ -207,7 +207,7 @@ async function main() {
         await validator.validateDeployedSite(githubPagesUrl);
         
         // Test the voice agent endpoint
-        const proxyUrl = 'https://wellabe-demo-proxy.vercel.app/api/retell-proxy';
+        const proxyUrl = 'https://wellabe-demo.vercel.app/api/retell-proxy';
         await validator.testVoiceAgentEndpoint(proxyUrl);
     }
     
