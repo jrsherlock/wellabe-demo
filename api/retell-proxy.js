@@ -40,9 +40,49 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { agent_id, metadata } = req.body;
+        const { agent_id, metadata, chat_id, message } = req.body;
 
-        // Validate required fields
+        // Rate limiting check (basic implementation)
+        const clientIP = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+
+        // Handle chat completion requests
+        if (chat_id && message) {
+            console.log(`Chat completion request from IP: ${clientIP} for chat: ${chat_id}`);
+
+            const response = await fetch('https://api.retellai.com/create-chat-completion', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${process.env.RETELL_API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'Wellabe-Demo-Proxy/1.0'
+                },
+                body: JSON.stringify({
+                    chat_id,
+                    message
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.text();
+                console.error('RetellAI Chat API error:', response.status, errorData);
+                res.status(503).json({
+                    error: 'Chat service temporarily unavailable',
+                    retry_after: 30
+                });
+                return;
+            }
+
+            const data = await response.json();
+            console.log(`Successful chat completion for: ${chat_id}`);
+
+            res.status(200).json({
+                response: data.response,
+                chat_id: data.chat_id
+            });
+            return;
+        }
+
+        // Handle web call or chat creation requests
         if (!agent_id) {
             res.status(400).json({ error: 'agent_id is required' });
             return;
@@ -54,19 +94,17 @@ export default async function handler(req, res) {
             return;
         }
 
-        // Rate limiting check (basic implementation)
-        const clientIP = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
         console.log(`Request from IP: ${clientIP} for agent: ${agent_id}`);
 
-        // Make request to RetellAI API
-        const response = await fetch('https://api.retellai.com/v2/create-web-call', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${process.env.RETELL_API_KEY}`,
-                'Content-Type': 'application/json',
-                'User-Agent': 'Wellabe-Demo-Proxy/1.0'
-            },
-            body: JSON.stringify({
+        // Determine if this is a chat agent or voice agent based on metadata
+        const isTextChat = metadata?.interaction_type === 'text_chat';
+
+        let apiEndpoint, requestBody;
+
+        if (isTextChat) {
+            // Create chat session
+            apiEndpoint = 'https://api.retellai.com/create-chat';
+            requestBody = {
                 agent_id,
                 metadata: {
                     ...metadata,
@@ -74,7 +112,29 @@ export default async function handler(req, res) {
                     client_ip: clientIP,
                     source: 'wellabe-demo'
                 }
-            })
+            };
+        } else {
+            // Create web call
+            apiEndpoint = 'https://api.retellai.com/v2/create-web-call';
+            requestBody = {
+                agent_id,
+                metadata: {
+                    ...metadata,
+                    proxy_timestamp: new Date().toISOString(),
+                    client_ip: clientIP,
+                    source: 'wellabe-demo'
+                }
+            };
+        }
+
+        const response = await fetch(apiEndpoint, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${process.env.RETELL_API_KEY}`,
+                'Content-Type': 'application/json',
+                'User-Agent': 'Wellabe-Demo-Proxy/1.0'
+            },
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
@@ -83,7 +143,7 @@ export default async function handler(req, res) {
 
             // Don't expose internal API errors to client
             res.status(503).json({
-                error: 'Voice service temporarily unavailable',
+                error: isTextChat ? 'Chat service temporarily unavailable' : 'Voice service temporarily unavailable',
                 retry_after: 30
             });
             return;
@@ -92,14 +152,20 @@ export default async function handler(req, res) {
         const data = await response.json();
 
         // Log successful calls for monitoring
-        console.log(`Successful web call created: ${data.call_id}`);
-
-        // Only return necessary data to client
-        res.status(200).json({
-            call_id: data.call_id,
-            access_token: data.access_token,
-            agent_id: data.agent_id
-        });
+        if (isTextChat) {
+            console.log(`Successful chat created: ${data.chat_id}`);
+            res.status(200).json({
+                chat_id: data.chat_id,
+                agent_id: data.agent_id
+            });
+        } else {
+            console.log(`Successful web call created: ${data.call_id}`);
+            res.status(200).json({
+                call_id: data.call_id,
+                access_token: data.access_token,
+                agent_id: data.agent_id
+            });
+        }
 
     } catch (error) {
         console.error('Proxy error:', error);

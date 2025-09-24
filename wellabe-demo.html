@@ -422,9 +422,137 @@
                 this.statusIndicator.classList.add('hidden');
             }
 
-            handleChatButtonClick() {
-                // Implement text chat fallback
-                alert('Text chat feature would be implemented here. This could integrate with your existing chat system or open a chat widget.');
+            async handleChatButtonClick() {
+                try {
+                    this.updateStatus('connecting', 'Starting text chat...');
+
+                    // Create chat session with the chat agent
+                    const response = await fetch(this.proxyEndpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            agent_id: 'agent_61778637b74d0567c110675836', // Wellabe_Demo Chat agent
+                            metadata: {
+                                customer_name: 'Demo User',
+                                interaction_type: 'text_chat',
+                                source: 'wellabe_demo'
+                            }
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const chatData = await response.json();
+
+                    if (chatData.chat_id) {
+                        this.updateStatus('connected', 'Text chat started successfully!');
+                        // Open a simple chat interface
+                        this.openChatInterface(chatData.chat_id);
+                    } else {
+                        throw new Error('No chat ID received');
+                    }
+
+                } catch (error) {
+                    console.error('Text chat error:', error);
+                    this.updateStatus('error', 'Text chat unavailable');
+                }
+            }
+
+            // Simple chat interface
+            openChatInterface(chatId) {
+                const proxyEndpoint = this.proxyEndpoint; // Store reference for template
+                const chatWindow = window.open('', 'WellabeChat', 'width=400,height=600,scrollbars=yes,resizable=yes');
+                chatWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>Wellabe Chat - Samantha</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+                            .chat-container { max-width: 100%; background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                            .chat-header { text-align: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee; }
+                            .chat-messages { height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; background: #fafafa; }
+                            .chat-input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+                            .send-btn { width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 5px; margin-top: 10px; cursor: pointer; }
+                            .send-btn:hover { background: #0056b3; }
+                            .message { margin: 10px 0; padding: 8px; border-radius: 5px; }
+                            .user-message { background: #007bff; color: white; text-align: right; }
+                            .agent-message { background: #e9ecef; color: #333; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="chat-container">
+                            <div class="chat-header">
+                                <h3>💬 Chat with Samantha</h3>
+                                <p>Your Wellabe AI Assistant</p>
+                            </div>
+                            <div class="chat-messages" id="messages">
+                                <div class="message agent-message">
+                                    Hi! I'm Samantha, your Wellabe AI assistant. How can I help you today?
+                                </div>
+                            </div>
+                            <input type="text" class="chat-input" id="messageInput" placeholder="Type your message here..." />
+                            <button class="send-btn" onclick="sendMessage()">Send Message</button>
+                        </div>
+
+                        <script>
+                            const chatId = '${chatId}';
+                            const proxyEndpoint = '${proxyEndpoint}';
+
+                            function sendMessage() {
+                                const input = document.getElementById('messageInput');
+                                const message = input.value.trim();
+                                if (!message) return;
+
+                                // Add user message to chat
+                                addMessage(message, 'user');
+                                input.value = '';
+
+                                // Send to chat completion API
+                                fetch(proxyEndpoint, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        chat_id: chatId,
+                                        message: message
+                                    })
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.response) {
+                                        addMessage(data.response, 'agent');
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Chat error:', error);
+                                    addMessage('Sorry, I encountered an error. Please try again.', 'agent');
+                                });
+                            }
+
+                            function addMessage(text, sender) {
+                                const messages = document.getElementById('messages');
+                                const messageDiv = document.createElement('div');
+                                messageDiv.className = 'message ' + (sender === 'user' ? 'user-message' : 'agent-message');
+                                messageDiv.textContent = text;
+                                messages.appendChild(messageDiv);
+                                messages.scrollTop = messages.scrollHeight;
+                            }
+
+                            // Allow Enter key to send message
+                            document.getElementById('messageInput').addEventListener('keypress', function(e) {
+                                if (e.key === 'Enter') {
+                                    sendMessage();
+                                }
+                            });
+                        </script>
+                    </body>
+                    </html>
+                `);
+                chatWindow.document.close();
             }
         }
 
