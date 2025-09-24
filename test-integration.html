@@ -142,9 +142,9 @@
                     this.logMessage('Testing web call creation...');
                     this.updateStatus('Creating web call...', 'info');
                     
-                    // Test the same endpoints as the main demo
+                    // Test the secure proxy endpoint
                     const endpoints = [
-                        'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://api.retellai.com/v2/create-web-call')
+                        'https://wellabe-demo-proxy.vercel.app/api/retell-proxy'
                     ];
 
                     for (const endpoint of endpoints) {
@@ -154,7 +154,6 @@
                             const response = await fetch(endpoint, {
                                 method: 'POST',
                                 headers: {
-                                    'Authorization': 'Bearer key_f9d04ea5b028416d6f8f258d4f6d',
                                     'Content-Type': 'application/json'
                                 },
                                 body: JSON.stringify({
