@@ -1,6 +1,6 @@
 {
   "functions": {
-    "retell-proxy.js": {
+    "api/retell-proxy.js": {
       "runtime": "nodejs18.x"
     }
   },
