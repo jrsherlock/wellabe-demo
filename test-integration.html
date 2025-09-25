@@ -4,16 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RetellAI Integration Test</title>
-    <!-- RetellAI Web SDK - ES6 Module -->
-    <script type="importmap">
-        {
-            "imports": {
-                "retell-client-js-sdk": "https://unpkg.com/retell-client-js-sdk@latest/dist/index.m.js",
-                "eventemitter3": "https://unpkg.com/eventemitter3@5.0.1/index.mjs",
-                "livekit-client": "https://unpkg.com/livekit-client@2.5.7/dist/livekit-client.esm.mjs"
-            }
-        }
-    </script>
+    <!-- RetellAI Web SDK - UMD Bundle -->
+    <script src="https://unpkg.com/retell-client-js-sdk@latest/dist/index.umd.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -93,9 +85,7 @@
         <div class="log" id="log"></div>
     </div>
 
-    <script type="module">
-        import { RetellWebClient } from 'retell-client-js-sdk';
-
+    <script>
         class RetellTester {
             constructor() {
                 this.log = document.getElementById('log');
@@ -131,11 +121,11 @@
                 try {
                     this.logMessage('Testing RetellAI SDK loading...');
                     
-                    if (typeof RetellWebClient === 'undefined') {
+                    if (typeof window.RetellWebClient === 'undefined') {
                         throw new Error('RetellWebClient not found');
                     }
 
-                    this.retellClient = new RetellWebClient();
+                    this.retellClient = new window.RetellWebClient();
                     this.logMessage('✅ RetellAI SDK loaded successfully');
                     this.updateStatus('SDK loaded successfully', 'success');
                     
