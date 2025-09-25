@@ -8,19 +8,50 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- RetellAI Web SDK - UMD Bundle -->
-    <script src="https://unpkg.com/retell-client-js-sdk@latest/dist/index.umd.js"></script>
+    <!-- RetellAI Web SDK - Test Multiple Approaches -->
     <script>
-        // Verify SDK loaded
+        // Test SDK loading function
         window.loadRetellSDK = function() {
             return new Promise((resolve, reject) => {
+                console.log('Testing RetellAI SDK loading...');
+
+                // Method 1: Check if already loaded
                 if (typeof window.RetellWebClient !== 'undefined') {
-                    console.log('RetellWebClient loaded successfully');
+                    console.log('✅ RetellWebClient already available');
                     resolve();
-                } else {
-                    console.error('RetellWebClient not found in window object');
-                    reject(new Error('RetellWebClient not available'));
+                    return;
                 }
+
+                // Method 2: Try loading via dynamic import (ES6 modules)
+                console.log('Attempting dynamic import...');
+                import('https://unpkg.com/retell-client-js-sdk@latest/dist/index.m.js')
+                    .then(module => {
+                        console.log('✅ ES6 module loaded:', module);
+                        window.RetellWebClient = module.RetellWebClient;
+                        resolve();
+                    })
+                    .catch(error => {
+                        console.log('❌ ES6 module failed:', error);
+
+                        // Method 3: Try UMD bundle
+                        console.log('Attempting UMD bundle...');
+                        const script = document.createElement('script');
+                        script.src = 'https://unpkg.com/retell-client-js-sdk@latest/dist/index.umd.js';
+                        script.onload = () => {
+                            if (typeof window.RetellWebClient !== 'undefined') {
+                                console.log('✅ UMD bundle loaded successfully');
+                                resolve();
+                            } else {
+                                console.log('❌ UMD bundle loaded but RetellWebClient not found');
+                                reject(new Error('RetellWebClient not available after UMD load'));
+                            }
+                        };
+                        script.onerror = () => {
+                            console.log('❌ UMD bundle failed to load');
+                            reject(new Error('Failed to load RetellAI SDK'));
+                        };
+                        document.head.appendChild(script);
+                    });
             });
         };
     </script>
